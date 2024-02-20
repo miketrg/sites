@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Calculation App</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.1.2/dist/tailwind.min.css">
+    <style>
+        .calculated-fields input[readonly] {
+            background-color: yellow;
+        }
+        .section-break {
+            border-bottom: 1px solid #ddd;
+            margin: 20px 0;
+        }
+        /* Additional style for input fields */
+        .input-fields input[type="number"],
+        .input-fields select {
+            background-color: #f0f0f0; /* Light grey background */
+            border-radius: 4px; /* Slightly rounded corners for a modern look */
+        }
+
+        /* Enhance the focus state for better user experience */
+        .input-fields input[type="number"]:focus,
+        .input-fields select:focus {
+            background-color: #e6e6e6; /* Slightly darker grey on focus */
+            outline: 2px solid #007bff; /* Blue outline to indicate focus */
+            outline-offset: 2px; /* Space between the outline and the input border */
+        }
+     
+    </style>
+</head>
+<body class="p-6">
+    <div class="container mx-auto">
+        <div class="exchange-rates mb-8">
+            <div class="mb-4">USD / VND: <input type="text" id="usdToVndRate" class="border p-2" value="25700" readonly /></div>
+            <div class="mb-4">CAD / VND: <input type="text" id="cadToVndRate" class="border p-2" value="18200" readonly /></div>
+        </div>
+        <div class="section-break"></div>
+
+        <div class="input-fields">
+            <div class="mb-4">Price: <input type="number" id="price" class="border p-2" /></div>
+            <div class="mb-4">Currency: 
+                <select id="currency" class="border p-2">
+                    <option value="USD">USD</option>
+                    <option value="CAD">CAD</option>
+                </select>
+            </div>
+            <div class="mb-4">Shipping fee to warehouse (USD/CAD): <input type="number" id="shippingFee" class="border p-2" /></div>
+        </div>
+
+        <div class="calculated-fields mt-8">
+            <div class="mb-4">Tax: <input type="text" id="tax" class="border p-2" readonly /></div>
+            <div class="mb-4">Final checkout price: <input type="text" id="finalCheckoutPrice" class="border p-2" readonly /></div>
+            <div class="mb-4">Final checkout price (VND): <input type="text" id="finalCheckoutPriceVnd" class="border p-2" readonly /></div>
+        </div>
+
+        <div class="section-break"></div>
+
+        <div class="input-fields">
+            <div class="mb-4">Weight (kg): <input type="number" id="weight" class="border p-2" /></div>
+            <div class="mb-4">Profit margin (%): <input type="number" id="profitMargin" class="border p-2" /></div>
+        </div>
+
+        <div class="calculated-fields mt-8">
+            <div class="mb-4">Phu thu (VND): <input type="text" id="phuThu" class="border p-2" readonly /></div>
+            <div class="mb-4">Ship to VN (VND): <input type="text" id="shipToVn" class="border p-2" readonly /></div>
+            <div class="mb-4">Total COGS (VND): <input type="text" id="totalCogs" class="border p-2" readonly /></div>
+            <div class="mb-4">Profit (VND): <input type="text" id="profit" class="border p-2" readonly /></div>
+            <div class="flex items-center justify-left">FINAL Quote Price (VND): <input type="text" id="finalQuotePrice" class="border p-2" readonly />
+                <button id="copyButton" class="ml-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Copy</button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <button id="clearButton" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Clear</button>
+    </div>
+
+    <script>
+        // // Utility function to format currency in VND
+        // function formatVnd(value) {
+        //     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+        // }
+        function financial(value) {
+            return value.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+
+        // Function to calculate and update the tax based on the selected currency
+        function updateTaxAndCheckout() {
+            const price = parseFloat(document.getElementById('price').value) || 0;
+            const currency = document.getElementById('currency').value;
+            const shippingFee = parseFloat(document.getElementById('shippingFee').value) || 0;
+            const taxRate = currency === 'USD' ? 0.0875 : 0.13;
+            const tax = price * taxRate;
+            document.getElementById('tax').value = tax.toFixed(2);
+
+            const finalCheckoutPrice = price + tax + shippingFee;
+            document.getElementById('finalCheckoutPrice').value = finalCheckoutPrice.toFixed(2);
+
+            const exchangeRate = currency === 'USD' ? parseFloat(document.getElementById('usdToVndRate').value) : parseFloat(document.getElementById('cadToVndRate').value);
+            const finalCheckoutPriceVnd = finalCheckoutPrice * exchangeRate;
+            document.getElementById('finalCheckoutPriceVnd').value = financial(finalCheckoutPriceVnd);
+
+            updateCogs(finalCheckoutPrice, exchangeRate); // Pass finalCheckoutPrice without VND conversion for phuThu calculation
+        }
+
+        // Function to calculate and update Phu thu and shipping to VN
+        function updateCogs(finalCheckoutPrice, exchangeRate) {
+            const weight = parseFloat(document.getElementById('weight').value) || 0;
+            const shippingRateUsd = 9.5;
+            const shippingRateCad = 16;
+            const currency = document.getElementById('currency').value;
+            
+            const shipToVn = weight * (currency === 'USD' ? shippingRateUsd : shippingRateCad) * exchangeRate;
+            document.getElementById('shipToVn').value = financial(shipToVn);
+
+            let phuThu = 0;
+            if (currency === 'CAD' && finalCheckoutPrice >= 500) {
+            phuThu = finalCheckoutPrice * 0.05 * exchangeRate;
+            } else if (currency === 'USD' && finalCheckoutPrice >= 300) {
+            phuThu = finalCheckoutPrice * 0.10 * exchangeRate;
+            } else if (currency === 'USD' && finalCheckoutPrice < 300) {
+            phuThu = 60000; // Fixed value in VND
+            }
+
+            document.getElementById('phuThu').value = financial(phuThu);
+
+            const totalCogs = (finalCheckoutPrice * exchangeRate) + phuThu + shipToVn; // Ensure finalCheckoutPrice is converted to VND
+            document.getElementById('totalCogs').value = financial(totalCogs);
+
+            updateProfitAndFinalQuote(totalCogs);
+        }
+
+        // Function to calculate and update profit and final quote price
+        function updateProfitAndFinalQuote() {
+            // Parse the total COGS from the 'totalCogs' input, assuming it's already in VND format
+            const totalCogs = parseFloat(document.getElementById('totalCogs').value.replace(/[^0-9.-]+/g,"")) || 0;
+            const profitMarginPercent = parseFloat(document.getElementById('profitMargin').value) || 0;
+
+            // Debug: Log values to console to check if they are parsed correctly
+            console.log('Parsed total COGS: ', totalCogs);
+            console.log('Profit Margin Percent: ', profitMarginPercent);
+
+            // Calculate the profit based on the profit margin percentage
+            const profit = totalCogs * (profitMarginPercent / 100);
+            // Update the 'profit' field with formatted profit value
+            document.getElementById('profit').value = financial(profit);
+            
+            // Debug: Log calculated profit to console
+            console.log('Calculated Profit: ', profit);
+
+            // Calculate the final quote price by adding the profit to the total COGS
+            const finalQuotePrice = totalCogs + profit;
+            // Update the 'FINAL quote price' field with formatted final quote price
+            document.getElementById('finalQuotePrice').value = financial(finalQuotePrice);
+            
+            // Debug: Log final quote price to console
+            console.log('Final Quote Price: ', finalQuotePrice);
+        }
+        // Event listeners for inputs that affect the final checkout price
+        document.getElementById('price').addEventListener('input', updateTaxAndCheckout);
+        document.getElementById('currency').addEventListener('change', updateTaxAndCheckout);
+        document.getElementById('shippingFee').addEventListener('input', updateTaxAndCheckout);
+        document.getElementById('weight').addEventListener('input', updateTaxAndCheckout);
+        document.getElementById('profitMargin').addEventListener('input',updateProfitAndFinalQuote);
+
+        function clearFields() {
+        // Clear input fields
+        document.getElementById('price').value = '';
+        document.getElementById('shippingFee').value = '';
+        document.getElementById('weight').value = '';
+        document.getElementById('profitMargin').value = '';
+
+        // Clear calculated fields
+        document.getElementById('tax').value = '';
+        document.getElementById('finalCheckoutPrice').value = '';
+        document.getElementById('finalCheckoutPriceVnd').value = '';
+        document.getElementById('shipToVn').value = '';
+        document.getElementById('phuThu').value = '';
+        document.getElementById('totalCogs').value = '';
+        document.getElementById('profit').value = '';
+        document.getElementById('finalQuotePrice').value = '';
+        }
+
+        // Event listener for the clear button
+        document.getElementById('clearButton').addEventListener('click', clearFields);
+      </script>
+</body>
+</html>
