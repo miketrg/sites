@@ -96,7 +96,7 @@
             const currency = document.getElementById('currency').value;
             const shippingFee = parseFloat(document.getElementById('shippingFee').value) || 0;
             const taxRate = currency === 'USD' ? 0.0875 : 0.13;
-            const tax = price * taxRate;
+            const tax = (price + shippingFee) * taxRate;
             document.getElementById('tax').value = tax.toFixed(2);
 
             const finalCheckoutPrice = price + tax + shippingFee;
