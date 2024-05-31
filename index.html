@@ -40,12 +40,12 @@
 
         <div class="input-fields">
             <!-- <div class="mb-4">Price: <input type="number" id="price" class="border p-2" /></div> -->
-            <div class="mb-4">Currency: 
-                <select id="currency" class="border p-2">
-                    <option value="USD">USD</option>
-                    <option value="CAD">CAD</option>
-                </select>
+            <div class="mb-4 font-bold">Currency: 
+                <div class="mt-2">
+                    <label class="mr-4"><input type="radio" name="currency" value="USD" class="currency" /> USD</label>
+                    <label class="mr-4"><input type="radio" name="currency" value="CAD" class="currency" /> CAD</label>
             </div>
+            <div class="section-break"></div>
             <div class="mb-4">Price: <input type="number" id="price" class="border p-2" /></div>
 
             <div class="mb-4">Shipping fee to warehouse (USD/CAD): <input type="number" id="shippingFee" class="border p-2" /></div>
@@ -60,7 +60,16 @@
         <div class="section-break"></div>
 
         <div class="input-fields">
-            <div class="mb-4">Weight (kg): <input type="number" id="weight" class="border p-2" /></div>
+            <div class="mb-4 font-bold">Weight (kg):
+                <div class="mt-2">
+                    <label class="mr-4"><input type="radio" name="weight" value="0.5" class="weight" /> 0.5</label>
+                    <label class="mr-4"><input type="radio" name="weight" value="1" class="weight" /> 1</label>
+                    <label class="mr-4"><input type="radio" name="weight" value="1.5" class="weight" /> 1.5</label>
+                    <label class="mr-4"><input type="radio" name="weight" value="2" class="weight" /> 2</label>
+                    <label class="mr-4"><input type="radio" name="weight" value="other" class="weight" /> Others</label>
+                    <input type="number" id="otherWeight" class="border p-2" style="display: none;" />
+                </div>
+            </div>
             <div class="mb-4">Profit margin (%): <input type="number" id="profitMargin" class="border p-2" /></div>
             <div class="mb-4">Ad cost (VND): <input type="number" id="adCost" class="border p-2" value="200000" readonly/></div>
             <div class="mb-4">Content (post bai) cost (VND): <input type="number" id="contentCost" class="border p-2" value="30000" readonly/></div>
@@ -97,7 +106,7 @@
         // Function to calculate and update the tax based on the selected currency
         function updateTaxAndCheckout() {
             const price = parseFloat(document.getElementById('price').value) || 0;
-            const currency = document.getElementById('currency').value;
+            const currency = document.querySelector('input[name="currency"]:checked').value;
             const shippingFee = parseFloat(document.getElementById('shippingFee').value) || 0;
             const taxRate = currency === 'USD' ? 0.05 : 0.13;
             const tax = (price + shippingFee) * taxRate;
@@ -112,13 +121,17 @@
 
             updateCogs(finalCheckoutPrice, exchangeRate); // Pass finalCheckoutPrice without VND conversion for phuThu calculation
         }
-
-        // Function to calculate and update Phu thu and shipping to VN
         function updateCogs(finalCheckoutPrice, exchangeRate) {
-            const weight = parseFloat(document.getElementById('weight').value) || 0;
+            let weight;
+            const weightRadio = document.querySelector('input[name="weight"]:checked').value;
+            if (weightRadio === "other") {
+                weight = parseFloat(document.getElementById('otherWeight').value) || 0;
+            } else {
+                weight = parseFloat(weightRadio) || 0;
+            }
             const shippingRateUsd = 9.5;
             const shippingRateCad = 16;
-            const currency = document.getElementById('currency').value;
+            const currency = document.querySelector('input[name="currency"]:checked').value;
             const adCost = parseFloat(document.getElementById('adCost').value) || 0;
             const contentCost = parseFloat(document.getElementById('contentCost').value) || 0;
             
@@ -127,11 +140,11 @@
 
             let phuThu = 0;
             if (currency === 'CAD' && finalCheckoutPrice >= 500) {
-            phuThu = finalCheckoutPrice * 0.05 * exchangeRate;
+                phuThu = finalCheckoutPrice * 0.05 * exchangeRate;
             } else if (currency === 'USD' && finalCheckoutPrice >= 300) {
-            phuThu = finalCheckoutPrice * 0.10 * exchangeRate;
+                phuThu = finalCheckoutPrice * 0.10 * exchangeRate;
             } else if (currency === 'USD' && finalCheckoutPrice < 300) {
-            phuThu = 60000; // Fixed value in VND
+                phuThu = 60000; // Fixed value in VND
             }
 
             document.getElementById('phuThu').value = financial(phuThu);
@@ -142,7 +155,21 @@
             updateProfitAndFinalQuote(totalCogs);
         }
 
-        // Function to calculate and update profit and final quote price
+        document.getElementById('price').addEventListener('input', updateTaxAndCheckout);
+        document.querySelectorAll('input[name="currency"]').forEach((elem) => {
+            elem.addEventListener('change', updateTaxAndCheckout);
+        });
+        document.querySelectorAll('input[name="weight"]').forEach((elem) => {
+            elem.addEventListener('change', function() {
+                if (this.value === "other") {
+                    document.getElementById('otherWeight').style.display = 'inline-block';
+                } else {
+                    document.getElementById('otherWeight').style.display = 'none';
+                    updateTaxAndCheckout(); // Recalculate if weight changes
+                }
+            });
+        });
+
         function updateProfitAndFinalQuote() {
             // Parse the total COGS from the 'totalCogs' input, assuming it's already in VND format
             const totalCogs = parseFloat(document.getElementById('totalCogs').value.replace(/[^0-9.-]+/g,"")) || 0;
@@ -168,61 +195,48 @@
             // Debug: Log final quote price to console
             console.log('Final Quote Price: ', finalQuotePrice);
         }
-        // Event listeners for inputs that affect the final checkout price
-        document.getElementById('price').addEventListener('input', updateTaxAndCheckout);
-        document.getElementById('currency').addEventListener('change', updateTaxAndCheckout);
+
+        document.getElementById('otherWeight').addEventListener('input', updateTaxAndCheckout);
         document.getElementById('shippingFee').addEventListener('input', updateTaxAndCheckout);
-        document.getElementById('weight').addEventListener('input', updateTaxAndCheckout);
-        document.getElementById('profitMargin').addEventListener('input',updateProfitAndFinalQuote);
+        document.getElementById('profitMargin').addEventListener('input', updateProfitAndFinalQuote);
         document.getElementById('adCost').addEventListener('input', updateTaxAndCheckout);
         document.getElementById('contentCost').addEventListener('input', updateTaxAndCheckout);
 
-
         function clearFields() {
-        // Clear input fields
-        document.getElementById('price').value = '';
-        document.getElementById('shippingFee').value = '';
-        document.getElementById('weight').value = '';
-        document.getElementById('profitMargin').value = '';
-        document.getElementById('adCost').value = '';
-        document.getElementById('contentCost').value = '';
+            // Clear input fields
+            document.getElementById('price').value = '';
+            document.getElementById('shippingFee').value = '';
+            document.getElementById('weight').value = '';
+            document.getElementById('profitMargin').value = '';
+            document.getElementById('adCost').value = '';
+            document.getElementById('contentCost').value = '';
 
-
-        // Clear calculated fields
-        document.getElementById('tax').value = '';
-        document.getElementById('finalCheckoutPrice').value = '';
-        document.getElementById('finalCheckoutPriceVnd').value = '';
-        document.getElementById('shipToVn').value = '';
-        document.getElementById('phuThu').value = '';
-        document.getElementById('totalCogs').value = '';
-        document.getElementById('profit').value = '';
-        document.getElementById('finalQuotePrice').value = '';
+            // Clear calculated fields
+            document.getElementById('tax').value = '';
+            document.getElementById('finalCheckoutPrice').value = '';
+            document.getElementById('finalCheckoutPriceVnd').value = '';
+            document.getElementById('shipToVn').value = '';
+            document.getElementById('phuThu').value = '';
+            document.getElementById('totalCogs').value = '';
+            document.getElementById('profit').value = '';
+            document.getElementById('finalQuotePrice').value = '';
         }
 
-        // Event listener for the clear button
         document.getElementById('clearButton').addEventListener('click', clearFields);
 
-        // Function to copy the FINAL Quote Price to clipboard
         function copyFinalQuotePriceToClipboard() {
-            // Get the FINAL Quote Price input by its ID
             const finalQuotePrice = document.getElementById('finalQuotePrice');
-            // Select the text field
             finalQuotePrice.select();
-            // finalQuotePrice.setSelectionRange(0, 99999); // For mobile devices
 
-            // Copy the text inside the text field to the clipboard
             navigator.clipboard.writeText(finalQuotePrice.value)
                 .then(() => {
-                    // Optional: Show a message to indicate the text was copied
                     console.log('Final Quote Price copied to clipboard.');
                 })
                 .catch(err => {
-                    // Optional: Show an error message if the copy failed
                     console.error('Failed to copy the text: ', err);
                 });
         }
 
-        // Add event listener to the Copy button
         document.getElementById('copyButton').addEventListener('click', copyFinalQuotePriceToClipboard);
         
       </script>
